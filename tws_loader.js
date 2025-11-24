@@ -10,7 +10,7 @@
 (function() {
     'use strict';
 
-    const baseURL = 'https://tribalwarstools.github.io/tw_project/';
+    const baseURL = 'https://cdn.jsdelivr.net/gh/tribalwarstools/tw-agendador@latest/';
 
     const scripts = [
         'tw-scheduler-backend.js',
