@@ -1,116 +1,92 @@
-// === TW SCHEDULER BACKEND ===
-// Responsável por armazenar, processar ataques e comunicar com o frontend.
+// === TW Scheduler Backend — Compatível com o Frontend v1 ===
 
 (function () {
     'use strict';
 
-    const STORAGE_KEY = "tws_scheduler_data_v1";
+    const STORAGE_KEY = "tws_scheduler_list_v1";
     const PROCESSED_KEY = "tws_scheduler_processed_v1";
 
-    // ========================
-    //   Armazenamento
-    // ========================
+    // =====================================================
+    //  Funções Utilitárias
+    // =====================================================
 
-    function load() {
+    function generateUniqueId() {
+        return "evt_" + Math.random().toString(36).substr(2, 9);
+    }
+
+    function parseDateTimeToMs(str) {
+        // Formato esperado: DD/MM/YYYY HH:MM:SS
+        const [date, time] = str.split(" ");
+        const [d, m, y] = date.split("/").map(Number);
+        const [hh, mm, ss] = time.split(":").map(Number);
+        return new Date(y, m - 1, d, hh, mm, ss).getTime();
+    }
+
+    // =====================================================
+    //  Lista de Eventos
+    // =====================================================
+
+    function getList() {
         try {
-            return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {
-                events: [],
-                lastUpdate: Date.now()
-            };
-        } catch (e) {
-            console.error("Erro ao carregar storage:", e);
-            return { events: [] };
+            return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+        } catch {
+            return [];
         }
     }
 
-    function save(data) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    function setList(list) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
     }
 
-    // ========================
-    //   Anti-duplicação REAL
-    // ========================
+    // =====================================================
+    //  Controle de Processamento
+    // =====================================================
 
-    function getProcessed() {
-        return JSON.parse(localStorage.getItem(PROCESSED_KEY)) || {};
-    }
+    const attackCoordinator = {
+        processing: {},
 
-    function markProcessed(id) {
-        const p = getProcessed();
-        p[id] = true;
-        localStorage.setItem(PROCESSED_KEY, JSON.stringify(p));
-    }
+        isBeingProcessed(id) {
+            return !!this.processing[id];
+        },
 
-    function isProcessed(id) {
-        const p = getProcessed();
-        return !!p[id];
-    }
+        markProcessing(id) {
+            this.processing[id] = true;
+        },
 
-    // ========================
-    //   Gerenciamento de eventos
-    // ========================
-
-    function listEvents() {
-        return load().events;
-    }
-
-    function addEvent(evt) {
-        const data = load();
-
-        const exists = data.events.some(e =>
-            e.id === evt.id ||
-            (e.target === evt.target && e.time === evt.time)
-        );
-
-        if (exists) return false;
-
-        data.events.push(evt);
-        save(data);
-        return true;
-    }
-
-    function removeEvent(id) {
-        const data = load();
-        data.events = data.events.filter(e => e.id !== id);
-        save(data);
-    }
-
-    // ========================
-    //   Executor central
-    // ========================
-
-    async function executeAttack(evt) {
-        if (!evt || !evt.id) return { ok: false, error: "Evento inválido" };
-
-        if (isProcessed(evt.id)) {
-            console.warn("Ignorando duplicado:", evt.id);
-            return { ok: false, duplicated: true };
+        clearProcessing(id) {
+            delete this.processing[id];
         }
-
-        markProcessed(evt.id);
-
-        try {
-            // Aqui será substituído pela função de envio real
-            console.log("⚔ Enviando ataque →", evt);
-
-            return { ok: true };
-        } catch (err) {
-            return { ok: false, error: err };
-        }
-    }
-
-    // ========================
-    //   API pública
-    // ========================
-
-    window.TWS_Backend = {
-        listEvents,
-        addEvent,
-        removeEvent,
-        executeAttack,
-        markProcessed,
-        isProcessed
     };
 
-    console.log("📦 TWS Backend carregado");
+    // =====================================================
+    //  Execução
+    // =====================================================
+
+    async function executeAttack(evt) {
+        attackCoordinator.markProcessing(evt._id);
+
+        console.log("⚔ Enviando ataque:", evt);
+
+        setTimeout(() => {
+            attackCoordinator.clearProcessing(evt._id);
+        }, 3000);
+
+        return { ok: true };
+    }
+
+    // =====================================================
+    //  API Pública
+    // =====================================================
+
+    window.TWS_Backend = {
+        generateUniqueId,
+        parseDateTimeToMs,
+        getList,
+        setList,
+
+        attackCoordinator,
+        executeAttack,
+    };
+
+    console.log("📦 Backend carregado (compatível com frontend)");
 })();
